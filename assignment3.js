@@ -1,7 +1,7 @@
 
 "use strict"
 
-var margin = {top: 30, right: 10, bottom: 10, left: 10},
+var margin = {top: 200, right: 10, bottom: 10, left: 10},
     width = 1800 - margin.left - margin.right,
     height = 800 - margin.top - margin.bottom;
 
@@ -24,6 +24,9 @@ var dimensions;
 var allData;
 var re = /([A-z ]*) \((mean|standard error|max)\)/;
 
+drawUI();
+
+// parse the data, then draw the graph
 d3.csv("wdbc.txt", function(error, data) {
 
     allData = data;
@@ -93,8 +96,8 @@ function brush() {
   });
 }
 
+// updates the lines and redraws the axes
 function updateDimensions() {
-    //dimensions.reverse();
     x.domain(dimensions)();
     svg.selectAll("#data-line").transition()
         .duration(1000)
@@ -153,15 +156,77 @@ function updateDimensions() {
       .attr("width", 16);
 }
 
+// filters the dimensions: "mean", "max", or "standard error"
 function dimensionMatch(m) {
-    x.domain(dimensions = d3.keys(allData[0]).filter(function(d) {
-    return d != "ID" && d != "Diagnosis" && d.match(re)[2] == m && 
-        (y[d] = d3.scale.linear()
-        .domain(d3.extent(allData, function(p) { return +p[d]; }))
+    var newDims = [];
+    for (var i = 0; i < dimensions.length; i++) {
+        newDims.push(d3.keys(allData[0]).filter(function (d) { 
+            return d.match(re) && d.match(re)[1] == dimensions[i].match(re)[1] && d.match(re)[2] == m;
+        })[0]);
+    }
+    dimensions = newDims;
+    for (var i = 0; i < dimensions.length; i++) {
+        (y[dimensions[i]] = d3.scale.linear()
+        .domain(d3.extent(allData, function(p) { return +p[dimensions[i]]; }))
         .range([height, 0]));
-    }));
+    }
     updateDimensions();
 }
+
+function drawUI() {
+    var ui = d3.select("svg")
+        .append("g")
+        .attr("id", "ui");
+        
+    // title
+    ui.append("text")
+        .attr("x", 80)
+        .attr("y", 30)
+        .attr("font-size", "30px")
+        .text("Breast Cancer Data");
+        
+    // key
+    var keybox = ui.append("g")
+        .attr("transform", "translate(100,70)");
+    keybox.append("text")
+        .attr("x", 50)
+        .attr("y", 20)
+        .attr("font-size", "20px")
+        .text("Malignant");
+    keybox.append("text")
+        .attr("x", 50)
+        .attr("y", 45)
+        .attr("font-size", "20px")
+        .text("Benign");
+    keybox.append("rect")
+        .attr("x", 0)
+        .attr("y", 13)
+        .attr("width", 40)
+        .attr("height", 2)
+        .attr("fill", "red")
+    keybox.append("rect")
+        .attr("x", 0)
+        .attr("y", 37)
+        .attr("width", 40)
+        .attr("height", 2)
+        .attr("fill", "blue")
+    
+    // data type picker
+    ui.append("foreignObject")
+        .attr("x", 400)
+        .attr("y", 80)
+        .attr("width", 200)
+        .attr("height", 50)
+        .html("<select onchange='dimensionMatch(this.value)'>\
+            <option value='mean'>Average</option>\
+            <option value='max'>Maximum</option>\
+            <option value='standard error'>Standard Error</option>\
+            </select>");
+}
+
+
+
+
 
 
 
