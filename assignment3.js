@@ -53,17 +53,19 @@ d3.csv("wdbc.txt", function(error, data) {
 
   // Add blue/red foreground lines for focus.
   // color lines based on diagnosis
+  var b = 0, m = 0;
   foreground = svg.append("g")
     .selectAll("path")
       .data(data)
     .enter().append("path")
       .attr("id", "data-line")
       .attr("d", path)
-      .attr("stroke", function (d) { return d.Diagnosis == "B" ? "blue" : "red"; })
+      .attr("stroke", function (d) { return d.Diagnosis == "B" ? (b++, "blue") : (m++, "red"); })
       .attr("stroke-width", 2)
       .attr("fill", "none")
       .attr("opacity", .1);
 
+    updateCounter(b, m);
     updateDimensions();
 });
 
@@ -243,7 +245,7 @@ function drawUI() {
         .attr("x", 0)
         .attr("y", 0)
         .attr("font-size", "20px")
-        .text("569 records shown: 357 benign, 212 malignant");
+        .text("0 records shown: 0 benign, 0 malignant");
 }
 
 function updateCounter(b, m) {
