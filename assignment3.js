@@ -89,11 +89,23 @@ function brushstart() {
 function brush() {
   var actives = dimensions.filter(function(p) { return !y[p].brush.empty(); }),
       extents = actives.map(function(p) { return y[p].brush.extent(); });
+  var bVisible = 0;
+  var mVisible = 0;
   foreground.style("display", function(d) {
-    return actives.every(function(p, i) {
+    var result = actives.every(function(p, i) {
       return extents[i][0] <= d[p] && d[p] <= extents[i][1];
     }) ? null : "none";
+    // keep track of how many lines are visible
+    if (result == null) {
+        if (d.Diagnosis == "B") {
+            bVisible++;
+        } else {
+            mVisible++;
+        }
+    }
+    return result;
   });
+  updateCounter(bVisible, mVisible);
 }
 
 // updates the lines and redraws the axes
@@ -183,7 +195,7 @@ function drawUI() {
         .attr("x", 80)
         .attr("y", 30)
         .attr("font-size", "30px")
-        .text("Breast Cancer Data");
+        .text("Cell Nuclei Characteristics and Breast Cancer Diagnosis");
         
     // key
     var keybox = ui.append("g")
@@ -218,13 +230,26 @@ function drawUI() {
         .attr("width", 200)
         .attr("height", 50)
         .html("<select onchange='dimensionMatch(this.value)'>\
-            <option value='mean'>Average</option>\
-            <option value='max'>Maximum</option>\
+            <option value='mean'>Average Value</option>\
+            <option value='max'>Maximum Value</option>\
             <option value='standard error'>Standard Error</option>\
             </select>");
+            
+    // benign/malignant counter
+    var counter = ui.append("g")
+        .attr("transform", "translate(600,90)");
+    counter.append("text")
+        .attr("id", "counter-text")
+        .attr("x", 0)
+        .attr("y", 0)
+        .attr("font-size", "20px")
+        .text("569 records shown: 357 benign, 212 malignant");
 }
 
-
+function updateCounter(b, m) {
+    d3.select("#counter-text")
+        .text((b + m) + " records shown: " + b + " benign, " + m + " malignant");
+}
 
 
 
