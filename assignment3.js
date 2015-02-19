@@ -141,18 +141,21 @@ function brush() {
 }
 
 function updateDimensions() {
-    dimensions.reverse();
+    //dimensions.reverse();
     x.domain(dimensions)();
     svg.selectAll("#data-line").transition()
         .duration(1000)
         .attr("d", path);
         
     // dimensions
-    var g = svg.selectAll("#dimension")
-        /*.data(dimensions)*/;
+    var g = svg.selectAll("#dimension").remove();
     
-    // add new dimensions
-    /*g.enter().append("g")
+    // update existing dimensions
+    //g.transition().duration(1000).attr("transform", function(d) { return "translate(" + x(d) + ")"; });
+    
+    /*// add new dimensions
+    g = g.data(dimensions);
+    g.enter().append("g")
         .attr("id", "dimension")
         .attr("transform", function(d) { return "translate(" + x(d) + ")"; })
         .call(d3.behavior.drag()
@@ -178,16 +181,13 @@ function updateDimensions() {
                 .delay(500)
                 .duration(0)
                 .attr("visibility", null);
-          }));*/
-         
-    // update existing dimensions
-    g.transition().duration(1000).attr("transform", function(d) { console.log(d, x(d)); return "translate(" + x(d) + ")"; });
+          }));
     
     // remove old ones
-    //g.exit().remove();
+    g.exit().remove();
 
     // Add an axis and title.
-    /*g.enter().append("g")
+    g.enter().append("g")
         .attr("id", "axis-title")
         .each(function(d) { d3.select(this).call(axis.scale(y[d])); })
       .append("text")
@@ -203,8 +203,67 @@ function updateDimensions() {
       .selectAll("rect")
         .attr("x", -8)
         .attr("width", 16);*/
+        
+        
+        // Add a group element for each dimension.
+  var g = svg.selectAll("#dimension")
+      .data(dimensions)
+    .enter().append("g")
+      .attr("id", "dimension")
+      .attr("transform", function(d) { return "translate(" + x(d) + ")"; })
+      .call(d3.behavior.drag()
+        .origin(function(d) { return {x: x(d)}; })
+        .on("dragstart", function(d) {
+          dragging[d] = x(d);
+          background.attr("visibility", "hidden");
+        })
+        .on("drag", function(d) {
+          dragging[d] = Math.min(width, Math.max(0, d3.event.x));
+          foreground.attr("d", path);
+          dimensions.sort(function(a, b) { return position(a) - position(b); });
+          x.domain(dimensions);
+          g.attr("transform", function(d) { return "translate(" + position(d) + ")"; })
+        })
+        .on("dragend", function(d) {
+          delete dragging[d];
+          transition(d3.select(this)).attr("transform", "translate(" + x(d) + ")");
+          transition(foreground).attr("d", path);
+          background
+              .attr("d", path)
+            .transition()
+              .delay(500)
+              .duration(0)
+              .attr("visibility", null);
+        }));
+
+  // Add an axis and title.
+  g.append("g")
+      .attr("id", "axis-title")
+      .each(function(d) { d3.select(this).call(axis.scale(y[d])); })
+    .append("text")
+      .style("text-anchor", "middle")
+      .attr("y", -9)
+      .text(function(d) { return d; });
+
+  // Add and store a brush for each axis.
+  g.append("g")
+      .each(function(d) {
+        d3.select(this).call(y[d].brush = d3.svg.brush().y(y[d]).on("brushstart", brushstart).on("brush", brush));
+      })
+    .selectAll("rect")
+      .attr("x", -8)
+      .attr("width", 16);
 }
 
+function dimensionMatch(m) {
+    x.domain(dimensions = d3.keys(allData[0]).filter(function(d) {
+    return d != "ID" && d != "Diagnosis" && d.match(re)[2] == m && 
+        (y[d] = d3.scale.linear()
+        .domain(d3.extent(allData, function(p) { return +p[d]; }))
+        .range([height, 0]));
+    }));
+    updateDimensions();
+}
 
 
 
