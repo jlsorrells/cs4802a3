@@ -1,5 +1,8 @@
+
+"use strict"
+
 var margin = {top: 30, right: 10, bottom: 10, left: 10},
-    width = 4000 - margin.left - margin.right,
+    width = 1800 - margin.left - margin.right,
     height = 800 - margin.top - margin.bottom;
 
 var x = d3.scale.ordinal().rangePoints([0, width], 1),
@@ -16,34 +19,42 @@ var svg = d3.select("body").append("svg")
     .attr("height", height + margin.top + margin.bottom)
   .append("g")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+    
+var dimensions;
+var allData;
+var re = /([A-z ]*) \((mean|standard error|max)\)/;
 
-d3.csv("wdbc.txt", function(error, cars) {
+d3.csv("wdbc.txt", function(error, data) {
+
+    allData = data;
 
   // Extract the list of dimensions and create a scale for each.
-  x.domain(dimensions = d3.keys(cars[0]).filter(function(d) {
-    return d != "ID" && d != "Diagnosis" && (y[d] = d3.scale.linear()
-        .domain(d3.extent(cars, function(p) { return +p[d]; }))
+  x.domain(dimensions = d3.keys(data[0]).filter(function(d) {
+    return d != "ID" && d != "Diagnosis" && d.match(re)[2] == "mean" && 
+        (y[d] = d3.scale.linear()
+        .domain(d3.extent(data, function(p) { return +p[d]; }))
         .range([height, 0]));
   }));
 
-  // Add grey background lines for context.
+  // Add greyer background lines for context.
   background = svg.append("g")
-      .attr("class", "background")
     .selectAll("path")
-      .data(cars)
+      .data(data)
     .enter().append("path")
+      .attr("id", "data-line")
       .attr("d", path)
-      .attr("stroke", function (d) { return d.Diagnosis == "B" ? "blue" : "red"; })
+      .attr("stroke", function (d) { return d.Diagnosis == "B" ? "#5555AA" : "#AA5555"; })
       .attr("stroke-width", 1)
       .attr("fill", "none")
       .attr("opacity", .05);
 
-  // Add blue foreground lines for focus.
+  // Add blue/red foreground lines for focus.
+  // color lines based on diagnosis
   foreground = svg.append("g")
-      .attr("class", "foreground")
     .selectAll("path")
-      .data(cars)
+      .data(data)
     .enter().append("path")
+      .attr("id", "data-line")
       .attr("d", path)
       .attr("stroke", function (d) { return d.Diagnosis == "B" ? "blue" : "red"; })
       .attr("stroke-width", 2)
@@ -51,10 +62,10 @@ d3.csv("wdbc.txt", function(error, cars) {
       .attr("opacity", .1);
 
   // Add a group element for each dimension.
-  var g = svg.selectAll(".dimension")
+  var g = svg.selectAll("#dimension")
       .data(dimensions)
     .enter().append("g")
-      .attr("class", "dimension")
+      .attr("id", "dimension")
       .attr("transform", function(d) { return "translate(" + x(d) + ")"; })
       .call(d3.behavior.drag()
         .origin(function(d) { return {x: x(d)}; })
@@ -83,7 +94,7 @@ d3.csv("wdbc.txt", function(error, cars) {
 
   // Add an axis and title.
   g.append("g")
-      .attr("class", "axis")
+      .attr("id", "axis-title")
       .each(function(d) { d3.select(this).call(axis.scale(y[d])); })
     .append("text")
       .style("text-anchor", "middle")
@@ -92,7 +103,6 @@ d3.csv("wdbc.txt", function(error, cars) {
 
   // Add and store a brush for each axis.
   g.append("g")
-      .attr("class", "brush")
       .each(function(d) {
         d3.select(this).call(y[d].brush = d3.svg.brush().y(y[d]).on("brushstart", brushstart).on("brush", brush));
       })
@@ -129,3 +139,72 @@ function brush() {
     }) ? null : "none";
   });
 }
+
+function updateDimensions() {
+    dimensions.reverse();
+    x.domain(dimensions)();
+    svg.selectAll("#data-line").transition()
+        .duration(1000)
+        .attr("d", path);
+        
+    // dimensions
+    var g = svg.selectAll("#dimension")
+        /*.data(dimensions)*/;
+    
+    // add new dimensions
+    /*g.enter().append("g")
+        .attr("id", "dimension")
+        .attr("transform", function(d) { return "translate(" + x(d) + ")"; })
+        .call(d3.behavior.drag()
+          .origin(function(d) { return {x: x(d)}; })
+          .on("dragstart", function(d) {
+            dragging[d] = x(d);
+            background.attr("visibility", "hidden");
+          })
+          .on("drag", function(d) {
+            dragging[d] = Math.min(width, Math.max(0, d3.event.x));
+            foreground.attr("d", path);
+            dimensions.sort(function(a, b) { return position(a) - position(b); });
+            x.domain(dimensions);
+            g.attr("transform", function(d) { return "translate(" + position(d) + ")"; })
+          })
+          .on("dragend", function(d) {
+            delete dragging[d];
+            transition(d3.select(this)).attr("transform", "translate(" + x(d) + ")");
+            transition(foreground).attr("d", path);
+            background
+                .attr("d", path)
+              .transition()
+                .delay(500)
+                .duration(0)
+                .attr("visibility", null);
+          }));*/
+         
+    // update existing dimensions
+    g.transition().duration(1000).attr("transform", function(d) { console.log(d, x(d)); return "translate(" + x(d) + ")"; });
+    
+    // remove old ones
+    //g.exit().remove();
+
+    // Add an axis and title.
+    /*g.enter().append("g")
+        .attr("id", "axis-title")
+        .each(function(d) { d3.select(this).call(axis.scale(y[d])); })
+      .append("text")
+        .style("text-anchor", "middle")
+        .attr("y", -9)
+        .text(function(d) { return d; });
+
+    // Add and store a brush for each axis.
+    g.enter().append("g")
+        .each(function(d) {
+          d3.select(this).call(y[d].brush = d3.svg.brush().y(y[d]).on("brushstart", brushstart).on("brush", brush));
+        })
+      .selectAll("rect")
+        .attr("x", -8)
+        .attr("width", 16);*/
+}
+
+
+
+
